@@ -23,6 +23,7 @@ import com.dhj.always_on_display.data.AppSelectorStore;
 import com.dhj.always_on_display.logging.DebugLog;
 import com.dhj.always_on_display.monitor.ForegroundAppMonitor;
 import com.dhj.always_on_display.service.KeepAwakeServiceController;
+import com.dhj.always_on_display.system.BackgroundLaunchHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -30,6 +31,8 @@ public class SettingsFragment extends Fragment {
     private TextView overlayPermissionStatus;
     private TextView usagePermissionStatus;
     private TextView notificationPermissionStatus;
+    private TextView exactAlarmPermissionStatus;
+    private TextView batteryOptimizationStatus;
     private TextView monitorStatus;
     private MaterialSwitch debugLoggingSwitch;
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
@@ -62,6 +65,8 @@ public class SettingsFragment extends Fragment {
         overlayPermissionStatus = view.findViewById(R.id.overlayPermissionStatus);
         usagePermissionStatus = view.findViewById(R.id.usagePermissionStatus);
         notificationPermissionStatus = view.findViewById(R.id.notificationPermissionStatus);
+        exactAlarmPermissionStatus = view.findViewById(R.id.exactAlarmPermissionStatus);
+        batteryOptimizationStatus = view.findViewById(R.id.batteryOptimizationStatus);
         monitorStatus = view.findViewById(R.id.monitorStatus);
         debugLoggingSwitch = view.findViewById(R.id.debugLoggingSwitch);
     }
@@ -70,10 +75,14 @@ public class SettingsFragment extends Fragment {
         MaterialButton overlayPermissionButton = view.findViewById(R.id.overlayPermissionButton);
         MaterialButton usagePermissionButton = view.findViewById(R.id.usagePermissionButton);
         MaterialButton notificationPermissionButton = view.findViewById(R.id.notificationPermissionButton);
+        MaterialButton exactAlarmPermissionButton = view.findViewById(R.id.exactAlarmPermissionButton);
+        MaterialButton batteryOptimizationButton = view.findViewById(R.id.batteryOptimizationButton);
 
         overlayPermissionButton.setOnClickListener(v -> requestOverlayPermission());
         usagePermissionButton.setOnClickListener(v -> requestUsageAccessPermission());
         notificationPermissionButton.setOnClickListener(v -> requestNotificationPermission());
+        exactAlarmPermissionButton.setOnClickListener(v -> requestExactAlarmPermission());
+        batteryOptimizationButton.setOnClickListener(v -> requestBatteryOptimizationExemption());
         debugLoggingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> onDebugLoggingChanged(isChecked));
     }
 
@@ -103,10 +112,47 @@ public class SettingsFragment extends Fragment {
         startActivity(intent);
     }
 
+    private void requestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !BackgroundLaunchHelper.canScheduleExactAlarms(requireContext())) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    .setData(Uri.parse("package:" + requireContext().getPackageName()));
+            startActivity(intent);
+            return;
+        }
+        openAlarmsAndRemindersSettings();
+    }
+
+    private void openAlarmsAndRemindersSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    .setData(Uri.parse("package:" + requireContext().getPackageName()));
+            startActivity(intent);
+        }
+    }
+
+    private void requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !BackgroundLaunchHelper.isIgnoringBatteryOptimizations(requireContext())) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:" + requireContext().getPackageName()));
+            startActivity(intent);
+            return;
+        }
+        openBatteryOptimizationSettings();
+    }
+
+    private void openBatteryOptimizationSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        }
+    }
+
     private void updateStatus() {
         boolean overlayGranted = Settings.canDrawOverlays(requireContext());
         boolean usageGranted = ForegroundAppMonitor.hasUsageAccess(requireContext());
         boolean notificationsGranted = hasNotificationPermission();
+        boolean exactAlarmGranted = BackgroundLaunchHelper.canScheduleExactAlarms(requireContext());
+        boolean batteryOptimizationIgnored = BackgroundLaunchHelper.isIgnoringBatteryOptimizations(requireContext());
 
         overlayPermissionStatus.setText(overlayGranted
                 ? getString(R.string.permission_granted)
@@ -118,6 +164,20 @@ public class SettingsFragment extends Fragment {
                 notificationsGranted
                         ? R.string.permission_granted
                         : (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        ? R.string.permission_recommended
+                        : R.string.permission_not_required)
+        ));
+        exactAlarmPermissionStatus.setText(getString(
+                exactAlarmGranted
+                        ? R.string.permission_granted
+                        : (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                        ? R.string.permission_recommended
+                        : R.string.permission_not_required)
+        ));
+        batteryOptimizationStatus.setText(getString(
+                batteryOptimizationIgnored
+                        ? R.string.permission_granted
+                        : (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                         ? R.string.permission_recommended
                         : R.string.permission_not_required)
         ));

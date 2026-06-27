@@ -17,6 +17,8 @@
     <string name="permission_overlay_title">悬浮窗权限</string>
     <string name="permission_usage_title">使用情况访问权限</string>
     <string name="permission_notification_title">通知权限</string>
+    <string name="permission_exact_alarm_title">精确闹钟权限</string>
+    <string name="permission_battery_optimization_title">电池优化</string>
     <string name="permission_granted">已授权</string>
     <string name="permission_required">未授权</string>
     <string name="permission_recommended">建议授权</string>
@@ -24,6 +26,8 @@
     <string name="permission_button_overlay">去授权悬浮窗</string>
     <string name="permission_button_usage">去授权使用情况访问</string>
     <string name="permission_button_notification">允许通知</string>
+    <string name="permission_button_exact_alarm">允许精确闹钟</string>
+    <string name="permission_button_battery_optimization">忽略电池优化</string>
     <string name="overlay_mode_title">自动监控</string>
     <string name="overlay_mode_body">授予权限并选中应用后，后台监控会自动启动，仅当前台应用属于你勾选的列表时才会挂载透明常亮窗口，离开这些应用后会自动停止常亮。</string>
     <string name="debug_logging_title">调试日志</string>

@@ -76,6 +76,7 @@ public class KeepAwakeOverlayService extends Service {
         }
 
         startInForeground();
+        KeepAwakeRestartScheduler.cancelRestart(this, "service_started");
         DebugLog.i(this, "Keep-awake monitor started with "
                 + AppSelectorStore.readSelectedPackages(this).size()
                 + " selected packages");
@@ -90,6 +91,13 @@ public class KeepAwakeOverlayService extends Service {
         DebugLog.i(this, "Service destroyed");
         stopOverlayWork();
         super.onDestroy();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        DebugLog.w(this, "Task removed, scheduling monitor restart");
+        KeepAwakeRestartScheduler.scheduleRestart(this, "task_removed");
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override

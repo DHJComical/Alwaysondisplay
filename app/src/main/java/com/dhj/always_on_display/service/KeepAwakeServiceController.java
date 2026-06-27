@@ -57,6 +57,7 @@ public final class KeepAwakeServiceController {
 
     private static void requestStart(Context context, String reason) {
         try {
+            KeepAwakeRestartScheduler.cancelRestart(context, "start_request:" + reason);
             ContextCompat.startForegroundService(
                     context,
                     new Intent(context, KeepAwakeOverlayService.class)
@@ -71,6 +72,7 @@ public final class KeepAwakeServiceController {
     }
 
     private static void requestStop(Context context, String reason) {
+        KeepAwakeRestartScheduler.cancelRestart(context, "stop_request:" + reason);
         boolean stopped = context.stopService(new Intent(context, KeepAwakeOverlayService.class));
         AppSelectorStore.setOverlayActive(context, false);
         DebugLog.i(context, "Stop request processed: reason=" + reason + ", serviceStopped=" + stopped);

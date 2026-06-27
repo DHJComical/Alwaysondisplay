@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.dhj.always_on_display.logging.DebugLog;
+import com.dhj.always_on_display.service.KeepAwakeRestartScheduler;
 import com.dhj.always_on_display.service.KeepAwakeServiceController;
 
 public class AutoStartReceiver extends BroadcastReceiver {
@@ -12,6 +13,9 @@ public class AutoStartReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String action = intent == null ? "<null>" : intent.getAction();
         DebugLog.i(context, "Auto-start receiver invoked: action=" + action);
+        if (KeepAwakeRestartScheduler.ACTION_RESTART_MONITOR.equals(action)) {
+            KeepAwakeRestartScheduler.cancelRestart(context, "restart_broadcast_received");
+        }
         KeepAwakeServiceController.syncService(context, "broadcast:" + action);
     }
 }
