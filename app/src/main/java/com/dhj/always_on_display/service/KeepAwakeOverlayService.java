@@ -66,7 +66,7 @@ public class KeepAwakeOverlayService extends Service {
         boolean overlayGranted = Settings.canDrawOverlays(this);
         boolean usageGranted = ForegroundAppMonitor.hasUsageAccess(this);
         if (!overlayGranted || !usageGranted) {
-            DebugLog.w(this, "Cannot start compatibility mode: overlay="
+            DebugLog.w(this, "Cannot start keep-awake monitor: overlay="
                     + overlayGranted
                     + ", usageAccess="
                     + usageGranted);
@@ -76,7 +76,7 @@ public class KeepAwakeOverlayService extends Service {
         }
 
         startInForeground();
-        DebugLog.i(this, "Compatibility mode started with "
+        DebugLog.i(this, "Keep-awake monitor started with "
                 + AppSelectorStore.readSelectedPackages(this).size()
                 + " selected packages");
         AppSelectorStore.setOverlayActive(this, true);
@@ -101,7 +101,7 @@ public class KeepAwakeOverlayService extends Service {
         boolean overlayGranted = Settings.canDrawOverlays(this);
         boolean usageGranted = ForegroundAppMonitor.hasUsageAccess(this);
         if (!overlayGranted || !usageGranted) {
-            DebugLog.w(this, "Stopping compatibility mode because required permissions are missing: overlay="
+            DebugLog.w(this, "Stopping keep-awake monitor because required permissions are missing: overlay="
                     + overlayGranted
                     + ", usageAccess="
                     + usageGranted);

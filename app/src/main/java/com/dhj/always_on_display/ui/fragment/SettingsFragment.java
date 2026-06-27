@@ -10,23 +10,20 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.dhj.always_on_display.R;
 import com.dhj.always_on_display.data.AppSelectorStore;
 import com.dhj.always_on_display.logging.DebugLog;
 import com.dhj.always_on_display.monitor.ForegroundAppMonitor;
-import com.dhj.always_on_display.service.KeepAwakeOverlayService;
+import com.dhj.always_on_display.service.KeepAwakeServiceController;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 public class SettingsFragment extends Fragment {
     private TextView overlayPermissionStatus;
     private TextView usagePermissionStatus;
-    private TextView compatibilityStatus;
-    private MaterialButton startOverlayButton;
-    private MaterialButton stopOverlayButton;
+    private TextView monitorStatus;
     private MaterialSwitch debugLoggingSwitch;
 
     public SettingsFragment() {
@@ -38,21 +35,21 @@ public class SettingsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         bindViews(view);
         setupActions(view);
+        KeepAwakeServiceController.syncService(requireContext(), "settings_view_created");
         updateStatus();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        KeepAwakeServiceController.syncService(requireContext(), "settings_resume");
         updateStatus();
     }
 
     private void bindViews(@NonNull View view) {
         overlayPermissionStatus = view.findViewById(R.id.overlayPermissionStatus);
         usagePermissionStatus = view.findViewById(R.id.usagePermissionStatus);
-        compatibilityStatus = view.findViewById(R.id.compatibilityStatus);
-        startOverlayButton = view.findViewById(R.id.startOverlayButton);
-        stopOverlayButton = view.findViewById(R.id.stopOverlayButton);
+        monitorStatus = view.findViewById(R.id.monitorStatus);
         debugLoggingSwitch = view.findViewById(R.id.debugLoggingSwitch);
     }
 
@@ -62,8 +59,6 @@ public class SettingsFragment extends Fragment {
 
         overlayPermissionButton.setOnClickListener(v -> requestOverlayPermission());
         usagePermissionButton.setOnClickListener(v -> requestUsageAccessPermission());
-        startOverlayButton.setOnClickListener(v -> startOverlayCompatibilityMode());
-        stopOverlayButton.setOnClickListener(v -> stopOverlayCompatibilityMode());
         debugLoggingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> onDebugLoggingChanged(isChecked));
     }
 
@@ -79,71 +74,9 @@ public class SettingsFragment extends Fragment {
         startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
     }
 
-    private void startOverlayCompatibilityMode() {
-        boolean overlayGranted = Settings.canDrawOverlays(requireContext());
-        boolean usageGranted = ForegroundAppMonitor.hasUsageAccess(requireContext());
-        int selectedCount = AppSelectorStore.readSelectedPackages(requireContext()).size();
-        DebugLog.i(requireContext(), "Start requested: overlay="
-                + overlayGranted
-                + ", usageAccess="
-                + usageGranted
-                + ", selectedCount="
-                + selectedCount);
-
-        if (!overlayGranted) {
-            DebugLog.w(requireContext(), "Start blocked because overlay permission is missing");
-            requestOverlayPermission();
-            return;
-        }
-        if (!usageGranted) {
-            DebugLog.w(requireContext(), "Start blocked because usage access is missing");
-            requestUsageAccessPermission();
-            return;
-        }
-        if (selectedCount == 0) {
-            DebugLog.w(requireContext(), "Start blocked because no trigger apps are selected");
-            Toast.makeText(requireContext(), R.string.toast_select_apps_first, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            ContextCompat.startForegroundService(
-                    requireContext(),
-                    new Intent(requireContext(), KeepAwakeOverlayService.class)
-                            .setAction(KeepAwakeOverlayService.ACTION_START)
-            );
-            DebugLog.i(requireContext(), "Foreground service start request sent");
-            AppSelectorStore.setOverlayActive(requireContext(), true);
-            Toast.makeText(requireContext(), R.string.toast_compat_enabled, Toast.LENGTH_SHORT).show();
-            updateStatus();
-        } catch (RuntimeException e) {
-            DebugLog.e(requireContext(), "Failed to request foreground service start", e);
-            AppSelectorStore.setOverlayActive(requireContext(), false);
-            Toast.makeText(requireContext(), R.string.toast_compat_start_failed, Toast.LENGTH_SHORT).show();
-            updateStatus();
-        }
-    }
-
-    private void stopOverlayCompatibilityMode() {
-        DebugLog.i(requireContext(), "User requested compatibility mode stop");
-        try {
-            requireContext().startService(
-                    new Intent(requireContext(), KeepAwakeOverlayService.class)
-                            .setAction(KeepAwakeOverlayService.ACTION_STOP)
-            );
-        } catch (RuntimeException e) {
-            DebugLog.e(requireContext(), "Failed to request compatibility mode stop", e);
-        }
-        AppSelectorStore.setOverlayActive(requireContext(), false);
-        Toast.makeText(requireContext(), R.string.toast_compat_stopped, Toast.LENGTH_SHORT).show();
-        updateStatus();
-    }
-
     private void updateStatus() {
         boolean overlayGranted = Settings.canDrawOverlays(requireContext());
         boolean usageGranted = ForegroundAppMonitor.hasUsageAccess(requireContext());
-        boolean compatibilityActive = AppSelectorStore.isOverlayActive(requireContext());
-        int selectedCount = AppSelectorStore.readSelectedPackages(requireContext()).size();
 
         overlayPermissionStatus.setText(overlayGranted
                 ? getString(R.string.permission_granted)
@@ -151,14 +84,11 @@ public class SettingsFragment extends Fragment {
         usagePermissionStatus.setText(usageGranted
                 ? getString(R.string.permission_granted)
                 : getString(R.string.permission_required));
-        compatibilityStatus.setText(getString(
-                R.string.compat_status,
-                getString(compatibilityActive ? R.string.compat_enabled : R.string.compat_disabled)
+        monitorStatus.setText(getString(
+                R.string.monitor_status,
+                getString(KeepAwakeServiceController.getStatusLabelResId(requireContext()))
         ));
         debugLoggingSwitch.setChecked(AppSelectorStore.isDebugLoggingEnabled(requireContext()));
-
-        startOverlayButton.setEnabled(overlayGranted && usageGranted && selectedCount > 0 && !compatibilityActive);
-        stopOverlayButton.setEnabled(compatibilityActive);
     }
 
     private void onDebugLoggingChanged(boolean enabled) {

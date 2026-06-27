@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment;
 
 import com.dhj.always_on_display.R;
 import com.dhj.always_on_display.data.AppSelectorStore;
+import com.dhj.always_on_display.service.KeepAwakeServiceController;
 import com.dhj.always_on_display.ui.activity.MainActivity;
 import com.google.android.material.button.MaterialButton;
 
@@ -36,7 +37,7 @@ public class IntroFragment extends Fragment {
 
     private void updateSummary(@NonNull View view) {
         TextView introSelectionCount = view.findViewById(R.id.introSelectionCount);
-        TextView introCompatibilityStatus = view.findViewById(R.id.introCompatibilityStatus);
+        TextView introMonitorStatus = view.findViewById(R.id.introMonitorStatus);
         TextView statusSummary = view.findViewById(R.id.statusSummary);
 
         int selectedCount = AppSelectorStore.readSelectedPackages(requireContext()).size();
@@ -48,10 +49,8 @@ public class IntroFragment extends Fragment {
             statusSummary.setText(getString(R.string.intro_status_active, selectedCount));
         }
 
-        introCompatibilityStatus.setText(
-                AppSelectorStore.isOverlayActive(requireContext())
-                        ? R.string.compat_enabled
-                        : R.string.compat_disabled
+        introMonitorStatus.setText(
+                KeepAwakeServiceController.getStatusLabelResId(requireContext())
         );
     }
 

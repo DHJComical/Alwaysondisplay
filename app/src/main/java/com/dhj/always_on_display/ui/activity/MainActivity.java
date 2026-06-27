@@ -11,6 +11,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.dhj.always_on_display.R;
+import com.dhj.always_on_display.service.KeepAwakeServiceController;
 import com.dhj.always_on_display.ui.fragment.AppsFragment;
 import com.dhj.always_on_display.ui.fragment.IntroFragment;
 import com.dhj.always_on_display.ui.fragment.SettingsFragment;
@@ -27,7 +28,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        KeepAwakeServiceController.syncService(this, "main_activity_create");
         setupNavigation();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        KeepAwakeServiceController.syncService(this, "main_activity_resume");
     }
 
     private void setupNavigation() {

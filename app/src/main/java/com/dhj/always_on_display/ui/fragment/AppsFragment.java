@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.dhj.always_on_display.R;
 import com.dhj.always_on_display.data.AppSelectorStore;
 import com.dhj.always_on_display.model.AppInfo;
+import com.dhj.always_on_display.service.KeepAwakeServiceController;
 import com.dhj.always_on_display.ui.adapter.AppListAdapter;
 
 import java.text.Collator;
@@ -74,6 +75,7 @@ public class AppsFragment extends Fragment {
         Set<String> selectedPackages = AppSelectorStore.readSelectedPackages(requireContext());
         adapter = new AppListAdapter(selectedPackages, updatedSelection -> {
             AppSelectorStore.writeSelectedPackages(requireContext(), updatedSelection);
+            KeepAwakeServiceController.syncService(requireContext(), "app_selection_changed");
             updateSelectionCount(updatedSelection.size());
         });
 
