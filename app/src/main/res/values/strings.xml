@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Always-on display</string>
+    <string name="xposed_description">LSPosed module for Always-on display customization.</string>
+    <string name="module_status_title">Always-on display LSPosed module</string>
+    <string name="module_status_body">Install this APK, enable it in LSPosed, select target apps, then reboot or force stop the target process.</string>
 </resources>
