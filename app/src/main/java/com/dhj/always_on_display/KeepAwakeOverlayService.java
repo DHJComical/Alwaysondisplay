@@ -6,41 +6,57 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 
+import java.util.Set;
+
 public class KeepAwakeOverlayService extends Service {
     public static final String ACTION_START = "com.dhj.always_on_display.action.START_KEEP_AWAKE_OVERLAY";
     public static final String ACTION_STOP = "com.dhj.always_on_display.action.STOP_KEEP_AWAKE_OVERLAY";
+    private static final long CHECK_INTERVAL_MS = 1200L;
 
     private WindowManager windowManager;
     private View overlayView;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable foregroundCheck = new Runnable() {
+        @Override
+        public void run() {
+            refreshOverlayState();
+        }
+    };
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? ACTION_START : intent.getAction();
         if (ACTION_STOP.equals(action)) {
+            handler.removeCallbacks(foregroundCheck);
             removeOverlay();
-            stopSelf();
-            return START_NOT_STICKY;
-        }
-
-        if (!Settings.canDrawOverlays(this)) {
             setOverlayActive(false);
             stopSelf();
             return START_NOT_STICKY;
         }
 
-        showOverlay();
-        setOverlayActive(overlayView != null);
+        if (!Settings.canDrawOverlays(this) || !ForegroundAppMonitor.hasUsageAccess(this)) {
+            setOverlayActive(false);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        setOverlayActive(true);
+        handler.removeCallbacks(foregroundCheck);
+        handler.post(foregroundCheck);
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
+        handler.removeCallbacks(foregroundCheck);
         removeOverlay();
         setOverlayActive(false);
         super.onDestroy();
@@ -49,6 +65,27 @@ public class KeepAwakeOverlayService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    private void refreshOverlayState() {
+        if (!Settings.canDrawOverlays(this) || !ForegroundAppMonitor.hasUsageAccess(this)) {
+            removeOverlay();
+            setOverlayActive(false);
+            stopSelf();
+            return;
+        }
+
+        Set<String> selectedPackages = AppSelectorStore.readSelectedPackages(this);
+        String foregroundPackage = ForegroundAppMonitor.getForegroundPackageName(this);
+        boolean shouldKeepAwake = foregroundPackage != null && selectedPackages.contains(foregroundPackage);
+
+        if (shouldKeepAwake) {
+            showOverlay();
+        } else {
+            removeOverlay();
+        }
+
+        handler.postDelayed(foregroundCheck, CHECK_INTERVAL_MS);
     }
 
     private void showOverlay() {
