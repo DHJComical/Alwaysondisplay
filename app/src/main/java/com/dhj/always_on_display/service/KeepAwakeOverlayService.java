@@ -231,10 +231,18 @@ public class KeepAwakeOverlayService extends Service {
     private Notification buildNotification() {
         Intent notificationIntent = new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Intent stopIntent = new Intent(this, KeepAwakeOverlayService.class)
+                .setAction(ACTION_STOP);
         PendingIntent contentIntent = PendingIntent.getActivity(
                 this,
                 0,
                 notificationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        PendingIntent stopPendingIntent = PendingIntent.getService(
+                this,
+                1,
+                stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
@@ -243,10 +251,16 @@ public class KeepAwakeOverlayService extends Service {
                 .setContentTitle(getString(com.dhj.always_on_display.R.string.foreground_service_notification_title))
                 .setContentText(getString(com.dhj.always_on_display.R.string.foreground_service_notification_text))
                 .setContentIntent(contentIntent)
+                .addAction(
+                        0,
+                        getString(com.dhj.always_on_display.R.string.foreground_service_notification_action_stop),
+                        stopPendingIntent
+                )
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
                 .build();
     }
 

@@ -13,13 +13,17 @@
     <string name="apps_page_title">应用触发列表</string>
     <string name="settings_page_title">权限与控制</string>
     <string name="permissions_title">权限准备</string>
-    <string name="permissions_summary">自动监控需要悬浮窗权限和使用情况访问权限，只有当前台是你选中的应用时才会触发常亮。</string>
+    <string name="permissions_summary">自动监控需要悬浮窗权限和使用情况访问权限；在 Android 13 及以上，通知权限有助于让前台常驻通知保持可见。</string>
     <string name="permission_overlay_title">悬浮窗权限</string>
     <string name="permission_usage_title">使用情况访问权限</string>
+    <string name="permission_notification_title">通知权限</string>
     <string name="permission_granted">已授权</string>
     <string name="permission_required">未授权</string>
+    <string name="permission_recommended">建议授权</string>
+    <string name="permission_not_required">无需授权</string>
     <string name="permission_button_overlay">去授权悬浮窗</string>
     <string name="permission_button_usage">去授权使用情况访问</string>
+    <string name="permission_button_notification">允许通知</string>
     <string name="overlay_mode_title">自动监控</string>
     <string name="overlay_mode_body">授予权限并选中应用后，后台监控会自动启动，仅当前台应用属于你勾选的列表时才会挂载透明常亮窗口，离开这些应用后会自动停止常亮。</string>
     <string name="debug_logging_title">调试日志</string>
@@ -28,6 +32,7 @@
     <string name="foreground_service_channel_description">在监控前台应用时保持后台监控持续运行。</string>
     <string name="foreground_service_notification_title">常亮监控正在运行</string>
     <string name="foreground_service_notification_text">正在监控前台应用，以便让选中的应用保持常亮。</string>
+    <string name="foreground_service_notification_action_stop">停止</string>
     <string name="foreground_service_special_use_reason">仅在选中的应用处于前台时，保持透明常亮覆盖层工作。</string>
     <string name="toast_debug_logging_enabled">调试日志已开启</string>
     <string name="toast_debug_logging_disabled">调试日志已关闭</string>

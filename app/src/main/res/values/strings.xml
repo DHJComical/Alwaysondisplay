@@ -13,13 +13,17 @@
     <string name="apps_page_title">App trigger list</string>
     <string name="settings_page_title">Permissions and controls</string>
     <string name="permissions_title">Permissions</string>
-    <string name="permissions_summary">Automatic monitoring needs overlay permission and usage access. The screen stays awake only when one of your selected apps is in the foreground.</string>
+    <string name="permissions_summary">Automatic monitoring needs overlay permission and usage access. On Android 13 and above, notification permission helps keep the foreground notification visible.</string>
     <string name="permission_overlay_title">Overlay permission</string>
     <string name="permission_usage_title">Usage access</string>
+    <string name="permission_notification_title">Notification permission</string>
     <string name="permission_granted">Granted</string>
     <string name="permission_required">Required</string>
+    <string name="permission_recommended">Recommended</string>
+    <string name="permission_not_required">Not required</string>
     <string name="permission_button_overlay">Grant overlay permission</string>
     <string name="permission_button_usage">Grant usage access</string>
+    <string name="permission_button_notification">Allow notifications</string>
     <string name="overlay_mode_title">Automatic monitor</string>
     <string name="overlay_mode_body">After permissions are granted and apps are selected, the background monitor starts automatically and attaches a transparent keep-awake window only while a selected app stays in the foreground.</string>
     <string name="debug_logging_title">Debug logging</string>
@@ -28,6 +32,7 @@
     <string name="foreground_service_channel_description">Keeps the foreground monitor running for selected apps.</string>
     <string name="foreground_service_notification_title">Keep-awake monitor is running</string>
     <string name="foreground_service_notification_text">Monitoring the foreground app to keep selected apps awake.</string>
+    <string name="foreground_service_notification_action_stop">Stop</string>
     <string name="foreground_service_special_use_reason">Keeps a transparent wake overlay active only while selected apps stay in the foreground.</string>
     <string name="toast_debug_logging_enabled">Debug logging enabled</string>
     <string name="toast_debug_logging_disabled">Debug logging disabled</string>
