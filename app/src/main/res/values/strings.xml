@@ -3,6 +3,15 @@
     <string name="xposed_description">Keep selected apps awake with LSPosed hooks or overlay compatibility mode.</string>
     <string name="module_status_title">Screen awake manager</string>
     <string name="module_status_body">Choose which apps should keep the display awake. LSPosed mode is more precise, while overlay mode is safer for games that crash when they detect injection.</string>
+    <string name="tab_intro">Intro</string>
+    <string name="tab_apps">Apps</string>
+    <string name="tab_settings">Settings</string>
+    <string name="intro_selected_title">Selected apps</string>
+    <string name="intro_mode_title">Overlay mode</string>
+    <string name="intro_how_title">How it works</string>
+    <string name="intro_how_body">LSPosed mode adds a keep-screen-on flag directly inside scoped apps. Overlay mode avoids injection and keeps the screen awake only when one of your selected apps is currently in the foreground.</string>
+    <string name="apps_page_title">App trigger list</string>
+    <string name="settings_page_title">Permissions and controls</string>
     <string name="permissions_title">Permissions</string>
     <string name="permissions_summary">Overlay mode needs overlay permission and usage access. The screen stays awake only when one of your selected apps is in the foreground.</string>
     <string name="permission_overlay_title">Overlay permission</string>
@@ -24,7 +33,7 @@
     <string name="selected_apps_title">Selected apps</string>
     <string name="selected_apps_summary">Overlay mode keeps the screen awake only when these apps are in the foreground, so it does not stay active on the launcher or in settings.</string>
     <string name="search_hint">Search by app name or package</string>
-    <string name="loading_apps">Loading apps...</string>
+    <string name="loading_apps">Loading apps…</string>
     <string name="empty_apps">No matching apps found</string>
     <string name="selection_count">%1$d apps selected</string>
     <string name="selection_none">No apps selected</string>

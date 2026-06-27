@@ -2,13 +2,14 @@ package com.dhj.always_on_display;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,13 +18,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -40,10 +41,15 @@ public class MainActivity extends AppCompatActivity {
     private TextView usagePermissionStatus;
     private TextView compatibilityStatus;
     private TextView selectionCount;
+    private TextView introSelectionCount;
+    private TextView introCompatibilityStatus;
     private TextView emptyState;
     private MaterialButton startOverlayButton;
     private MaterialButton stopOverlayButton;
     private TextInputEditText searchInput;
+    private View introPage;
+    private View appsPage;
+    private View settingsPage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,10 +71,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void bindViews() {
+        introPage = findViewById(R.id.introPage);
+        appsPage = findViewById(R.id.appsPage);
+        settingsPage = findViewById(R.id.settingsPage);
         overlayPermissionStatus = findViewById(R.id.overlayPermissionStatus);
         usagePermissionStatus = findViewById(R.id.usagePermissionStatus);
         compatibilityStatus = findViewById(R.id.compatibilityStatus);
         selectionCount = findViewById(R.id.selectionCount);
+        introSelectionCount = findViewById(R.id.introSelectionCount);
+        introCompatibilityStatus = findViewById(R.id.introCompatibilityStatus);
         emptyState = findViewById(R.id.emptyState);
         startOverlayButton = findViewById(R.id.startOverlayButton);
         stopOverlayButton = findViewById(R.id.stopOverlayButton);
@@ -79,6 +90,19 @@ public class MainActivity extends AppCompatActivity {
 
         overlayPermissionButton.setOnClickListener(view -> requestOverlayPermission());
         usagePermissionButton.setOnClickListener(view -> requestUsageAccessPermission());
+
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigation);
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.nav_apps) {
+                showPage(appsPage);
+            } else if (item.getItemId() == R.id.nav_settings) {
+                showPage(settingsPage);
+            } else {
+                showPage(introPage);
+            }
+            return true;
+        });
+        bottomNavigationView.setSelectedItemId(R.id.nav_intro);
     }
 
     private void setupRecyclerView() {
@@ -120,24 +144,20 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             PackageManager packageManager = getPackageManager();
-            Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
-            launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-
-            List<ResolveInfo> resolvedApps = packageManager.queryIntentActivities(launcherIntent, 0);
             List<AppInfo> loadedApps = new ArrayList<>();
-            Set<String> seenPackages = new HashSet<>();
 
-            for (ResolveInfo resolveInfo : resolvedApps) {
-                String packageName = resolveInfo.activityInfo.packageName;
-                if (getPackageName().equals(packageName) || !seenPackages.add(packageName)) {
+            List<ApplicationInfo> installedApplications = packageManager.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0));
+            for (ApplicationInfo applicationInfo : installedApplications) {
+                String packageName = applicationInfo.packageName;
+                if (getPackageName().equals(packageName)) {
                     continue;
                 }
 
-                CharSequence label = resolveInfo.loadLabel(packageManager);
+                CharSequence label = applicationInfo.loadLabel(packageManager);
                 loadedApps.add(new AppInfo(
                         label == null ? packageName : label.toString(),
                         packageName,
-                        resolveInfo.loadIcon(packageManager)
+                        applicationInfo.loadIcon(packageManager)
                 ));
             }
 
@@ -209,6 +229,7 @@ public class MainActivity extends AppCompatActivity {
                 R.string.compat_status,
                 getString(compatibilityActive ? R.string.compat_enabled : R.string.compat_disabled)
         ));
+        introCompatibilityStatus.setText(getString(compatibilityActive ? R.string.compat_enabled : R.string.compat_disabled));
 
         startOverlayButton.setEnabled(overlayGranted && usageGranted && adapter.getSelectedCount() > 0 && !compatibilityActive);
         stopOverlayButton.setEnabled(compatibilityActive);
@@ -217,8 +238,11 @@ public class MainActivity extends AppCompatActivity {
     private void updateSelectionCount(int count) {
         if (count == 0) {
             selectionCount.setText(R.string.selection_none);
+            introSelectionCount.setText(R.string.selection_none);
         } else {
-            selectionCount.setText(getString(R.string.selection_count, count));
+            String text = getString(R.string.selection_count, count);
+            selectionCount.setText(text);
+            introSelectionCount.setText(text);
         }
         updateStatus();
     }
@@ -245,5 +269,11 @@ public class MainActivity extends AppCompatActivity {
     private String getSearchQuery() {
         Editable editable = searchInput.getText();
         return editable == null ? "" : editable.toString();
+    }
+
+    private void showPage(View pageToShow) {
+        introPage.setVisibility(pageToShow == introPage ? View.VISIBLE : View.GONE);
+        appsPage.setVisibility(pageToShow == appsPage ? View.VISIBLE : View.GONE);
+        settingsPage.setVisibility(pageToShow == settingsPage ? View.VISIBLE : View.GONE);
     }
 }

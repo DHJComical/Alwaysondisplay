@@ -3,6 +3,15 @@
     <string name="xposed_description">通过 LSPosed 或兼容模式让选中的应用保持亮屏。</string>
     <string name="module_status_title">常亮管理</string>
     <string name="module_status_body">选择需要触发常亮的应用。LSPosed 模式更精准，兼容模式更适合会因为注入检测而闪退的游戏。</string>
+    <string name="tab_intro">简介</string>
+    <string name="tab_apps">应用</string>
+    <string name="tab_settings">设置</string>
+    <string name="intro_selected_title">已选应用</string>
+    <string name="intro_mode_title">兼容模式</string>
+    <string name="intro_how_title">工作方式</string>
+    <string name="intro_how_body">LSPosed 模式会在作用域应用内部直接添加常亮标记。兼容模式不注入目标应用，只在你选中的应用位于前台时挂载透明常亮窗口。</string>
+    <string name="apps_page_title">应用触发列表</string>
+    <string name="settings_page_title">权限与控制</string>
     <string name="permissions_title">权限准备</string>
     <string name="permissions_summary">兼容模式需要悬浮窗权限和使用情况访问权限，只有当前台是你选中的应用时才会触发常亮。</string>
     <string name="permission_overlay_title">悬浮窗权限</string>
