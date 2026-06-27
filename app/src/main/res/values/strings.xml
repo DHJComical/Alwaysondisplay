@@ -1,6 +1,16 @@
 <resources>
     <string name="app_name">Always-on display</string>
-    <string name="xposed_description">LSPosed module for Always-on display customization.</string>
+    <string name="xposed_description">Keep scoped apps awake, with a compatibility mode for apps that do not tolerate injection.</string>
     <string name="module_status_title">Always-on display LSPosed module</string>
-    <string name="module_status_body">Enable this module in LSPosed and select target apps. When a scoped app is open, its Activity windows will keep the screen awake.</string>
+    <string name="module_status_body">LSPosed mode keeps scoped apps awake by adding a window flag. If a game crashes after being selected in the LSPosed scope, remove it from the scope and use overlay compatibility mode instead.</string>
+    <string name="permission_button">Grant display over other apps permission</string>
+    <string name="enable_compat_button">Start overlay compatibility mode</string>
+    <string name="stop_compat_button">Stop overlay compatibility mode</string>
+    <string name="toast_compat_enabled">Overlay compatibility mode enabled</string>
+    <string name="toast_compat_stopped">Overlay compatibility mode stopped</string>
+    <string name="permission_granted">Display over other apps permission: granted</string>
+    <string name="permission_required">Display over other apps permission: required for overlay compatibility mode</string>
+    <string name="compat_status">Overlay compatibility mode: %1$s</string>
+    <string name="compat_enabled">enabled</string>
+    <string name="compat_disabled">disabled</string>
 </resources>
