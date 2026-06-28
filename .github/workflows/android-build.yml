@@ -27,8 +27,17 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
+  draft-release:
+    if: github.event_name == 'push' && github.ref_type != 'tag' && (github.ref_name == 'master' || github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v7
+        with:
+          config-name: release-drafter.yml
+
   build-apk:
     runs-on: ubuntu-latest
     env:
@@ -90,6 +99,14 @@ jobs:
             PREVIOUS_TAG_SOURCE="${{ github.sha }}"
           fi
 
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            SAFE_RELEASE_TAG="${RELEASE_TAG//\//-}"
+            SAFE_RELEASE_TAG="${SAFE_RELEASE_TAG// /-}"
+            ARTIFACT_BASENAME="${APP_NAME}-${SAFE_RELEASE_TAG}"
+          else
+            ARTIFACT_BASENAME="${APP_NAME}-${{ github.run_number }}"
+          fi
+
           echo "build_type=${BUILD_TYPE}" >> "$GITHUB_OUTPUT"
           echo "publish_release=${PUBLISH_RELEASE}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
@@ -97,7 +114,8 @@ jobs:
           echo "previous_tag_source=${PREVIOUS_TAG_SOURCE}" >> "$GITHUB_OUTPUT"
           echo "gradle_task=assemble${BUILD_TYPE^}" >> "$GITHUB_OUTPUT"
           echo "apk_dir=app/build/outputs/apk/${BUILD_TYPE}" >> "$GITHUB_OUTPUT"
-          echo "artifact_file=${APP_NAME}-${{ github.run_number }}.apk" >> "$GITHUB_OUTPUT"
+          echo "artifact_basename=${ARTIFACT_BASENAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_file=${ARTIFACT_BASENAME}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Resolve version metadata
         id: version
@@ -162,24 +180,30 @@ jobs:
           cp "${SOURCE_APK}" "${TARGET_APK}"
           echo "apk_path=${TARGET_APK}" >> "$GITHUB_OUTPUT"
 
+      - name: Generate release body with Release Drafter
+        id: release_drafter
+        if: steps.config.outputs.publish_release == 'true' && steps.config.outputs.build_type == 'release'
+        uses: release-drafter/release-drafter@v7
+        with:
+          config-name: release-drafter.yml
+          dry-run: true
+          tag: ${{ steps.config.outputs.release_tag }}
+          version: ${{ steps.version.outputs.version_name }}
+          name: ${{ env.APP_NAME }} ${{ steps.config.outputs.release_tag }}
+          commitish: ${{ github.sha }}
+
       - name: Prepare release notes
         id: release_notes
         if: steps.config.outputs.publish_release == 'true'
         shell: bash
+        env:
+          RELEASE_DRAFTER_BODY: ${{ steps.release_drafter.outputs.body }}
         run: |
           NOTES_FILE="dist/release-notes.md"
-          SHORT_SHA="${GITHUB_SHA::7}"
           CURRENT_REF="${{ steps.config.outputs.current_ref }}"
           PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${{ steps.config.outputs.previous_tag_source }}" 2>/dev/null || true)"
 
-          sed \
-            -e "s/{{TAG}}/${{ steps.config.outputs.release_tag }}/g" \
-            -e "s/{{RUN_NUMBER}}/${{ github.run_number }}/g" \
-            -e "s/{{COMMIT_SHA}}/${SHORT_SHA}/g" \
-            -e "s/{{VERSION_NAME}}/${{ steps.version.outputs.version_name }}/g" \
-            -e "s/{{VERSION_CODE}}/${{ steps.version.outputs.version_code }}/g" \
-            -e "s/{{APK_NAME}}/${{ steps.config.outputs.artifact_file }}/g" \
-            .github/release-template.md > "${NOTES_FILE}"
+          printf '%s\n' "${RELEASE_DRAFTER_BODY}" > "${NOTES_FILE}"
 
           if [[ -n "${PREVIOUS_TAG}" ]]; then
             CHANGELOG_RANGE="${PREVIOUS_TAG}..${CURRENT_REF}"
@@ -189,7 +213,15 @@ jobs:
 
           {
             echo ""
-            echo "## Changelog"
+            echo "## Build Info"
+            echo ""
+            echo "- Tag: \`${{ steps.config.outputs.release_tag }}\`"
+            echo "- Workflow Run: \`${{ github.run_number }}\`"
+            echo "- Version Name: \`${{ steps.version.outputs.version_name }}\`"
+            echo "- Version Code: \`${{ steps.version.outputs.version_code }}\`"
+            echo "- APK: \`${{ steps.config.outputs.artifact_file }}\`"
+            echo ""
+            echo "## Direct Commits"
             if [[ -n "${PREVIOUS_TAG}" ]]; then
               echo ""
               echo "From \`${PREVIOUS_TAG}\` to \`${{ steps.config.outputs.release_tag }}\`"
@@ -245,7 +277,7 @@ jobs:
               const avatarUrl = `${author.avatar_url}${author.avatar_url.includes('?') ? '&' : '?'}s=40`;
               seen.set(
                 author.login,
-                `- <img src="${avatarUrl}" width="20" height="20" alt="@${author.login}" /> [@${author.login}](${author.html_url})`
+                `<img src="${avatarUrl}" width="20" height="20" alt="@${author.login}" /> [@${author.login}](${author.html_url})`
               );
             }
 
@@ -254,8 +286,8 @@ jobs:
             fs.writeFileSync(
               contributorFile,
               seen.size > 0
-                ? Array.from(seen.values()).join('\n')
-                : '- No GitHub-linked contributors found for this release range.\n',
+                ? Array.from(seen.values()).join(', ')
+                : 'No contributors\n',
               'utf8'
             );
             core.setOutput('contributors_path', contributorFile);
@@ -267,22 +299,102 @@ jobs:
           {
             echo ""
             echo "## Contributors"
+            echo ""
             cat "${{ steps.contributors.outputs.contributors_path }}"
           } >> "${{ steps.release_notes.outputs.notes_path }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-${{ github.run_number }}
+          name: ${{ steps.config.outputs.artifact_basename }}
           path: ${{ steps.artifact.outputs.apk_path }}
           if-no-files-found: error
 
-      - name: Publish GitHub Release
+      - name: Create or update GitHub release and asset
         if: steps.config.outputs.publish_release == 'true' && steps.config.outputs.build_type == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.config.outputs.release_tag }}
+          RELEASE_NAME: ${{ env.APP_NAME }} ${{ steps.config.outputs.release_tag }}
+          RELEASE_TARGET: ${{ github.sha }}
+          RELEASE_BODY_PATH: ${{ steps.release_notes.outputs.notes_path }}
+          RELEASE_ASSET_PATH: ${{ steps.artifact.outputs.apk_path }}
+          RELEASE_ASSET_NAME: ${{ steps.config.outputs.artifact_file }}
         with:
-          tag_name: ${{ steps.config.outputs.release_tag }}
-          target_commitish: ${{ github.sha }}
-          name: ${{ env.APP_NAME }} ${{ steps.config.outputs.release_tag }}
-          files: ${{ steps.artifact.outputs.apk_path }}
-          body_path: ${{ steps.release_notes.outputs.notes_path }}
+          script: |
+            const fs = require('fs');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const releaseTag = process.env.RELEASE_TAG;
+            const releaseName = process.env.RELEASE_NAME;
+            const releaseTarget = process.env.RELEASE_TARGET;
+            const body = fs.readFileSync(process.env.RELEASE_BODY_PATH, 'utf8');
+            const assetPath = process.env.RELEASE_ASSET_PATH;
+            const assetName = process.env.RELEASE_ASSET_NAME;
+            const assetData = fs.readFileSync(assetPath);
+            let release;
+
+            try {
+              release = (
+                await github.rest.repos.getReleaseByTag({
+                  owner,
+                  repo,
+                  tag: releaseTag,
+                })
+              ).data;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+
+              release = (
+                await github.rest.repos.createRelease({
+                  owner,
+                  repo,
+                  tag_name: releaseTag,
+                  target_commitish: releaseTarget,
+                  name: releaseName,
+                  body,
+                  draft: false,
+                  prerelease: false,
+                  make_latest: 'true',
+                })
+              ).data;
+            }
+
+            release = (
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                tag_name: releaseTag,
+                target_commitish: releaseTarget,
+                name: releaseName,
+                body,
+                draft: false,
+                prerelease: false,
+                make_latest: 'true',
+              })
+            ).data;
+
+            const existingAsset = (release.assets || []).find((asset) => asset.name === assetName);
+            if (existingAsset) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner,
+                repo,
+                asset_id: existingAsset.id,
+              });
+            }
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner,
+              repo,
+              release_id: release.id,
+              name: assetName,
+              headers: {
+                'content-type': 'application/vnd.android.package-archive',
+                'content-length': assetData.length,
+              },
+              data: assetData,
+            });

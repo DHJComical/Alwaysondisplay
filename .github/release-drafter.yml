@@ -1,0 +1,35 @@
+name-template: "AlwaysOnDisplay $RESOLVED_VERSION"
+tag-template: "$RESOLVED_VERSION"
+version-template: "$MAJOR.$MINOR.$PATCH"
+filter-by-commitish: true
+latest: true
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+no-changes-template: "- No pull request changes"
+no-contributors-template: "No contributors"
+template: |
+  ## Release Summary
+
+  $CHANGES
+
+  ## Previous Tag
+
+  $PREVIOUS_TAG
+
+categories:
+  - title: Features
+    when:
+      labels:
+        - feature
+        - enhancement
+  - title: Fixes
+    when:
+      labels:
+        - fix
+        - bug
+        - bugfix
+  - title: Maintenance
+    when:
+      labels:
+        - chore
+        - dependencies
+  - title: Other
