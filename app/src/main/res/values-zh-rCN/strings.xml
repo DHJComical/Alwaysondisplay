@@ -37,7 +37,6 @@
     <string name="foreground_service_notification_title">常亮监控已启用</string>
     <string name="foreground_service_notification_text">正在监控前台应用变化，以便让选中的应用保持常亮。</string>
     <string name="foreground_service_notification_action_stop">停止</string>
-    <string name="foreground_service_special_use_reason">仅在选中的应用处于前台时，保持透明常亮窗口工作。</string>
     <string name="toast_debug_logging_enabled">调试日志已开启</string>
     <string name="toast_debug_logging_disabled">调试日志已关闭</string>
     <string name="toast_select_apps_first">请先选择至少一个应用</string>
