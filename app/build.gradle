@@ -2,6 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+def defaultVersionCode = 1
+def defaultVersionName = "1.0"
+def ciVersionCode = providers.gradleProperty("ciVersionCode").orNull
+def ciVersionName = providers.gradleProperty("ciVersionName").orNull
+
 android {
     namespace 'com.dhj.always_on_display'
     compileSdk {
@@ -14,8 +19,8 @@ android {
         applicationId "com.dhj.always_on_display"
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName "1.0"
+        versionCode ciVersionCode != null ? ciVersionCode.toInteger() : defaultVersionCode
+        versionName ciVersionName != null ? ciVersionName : defaultVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

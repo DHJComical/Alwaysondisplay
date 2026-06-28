@@ -2,6 +2,10 @@ name: Android Build
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - '*'
     paths-ignore:
       - '**/*.md'
       - '.github/workflows/**'
@@ -28,6 +32,7 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     env:
+      APP_NAME: AlwaysOnDisplay
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -36,6 +41,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -59,22 +66,69 @@ jobs:
         id: config
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            BUILD_TYPE="release"
+            PUBLISH_RELEASE="true"
+            RELEASE_TAG="${{ github.ref_name }}"
+            CURRENT_REF="${{ github.ref_name }}"
+            PREVIOUS_TAG_SOURCE="${{ github.ref_name }}^"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             BUILD_TYPE="${{ inputs.build_type }}"
+            if [[ "${{ inputs.publish_release }}" == "true" ]]; then
+              PUBLISH_RELEASE="true"
+            else
+              PUBLISH_RELEASE="false"
+            fi
+            RELEASE_TAG="release-${{ github.run_number }}"
+            CURRENT_REF="${{ github.sha }}"
+            PREVIOUS_TAG_SOURCE="${{ github.sha }}"
           else
             BUILD_TYPE="debug"
+            PUBLISH_RELEASE="false"
+            RELEASE_TAG=""
+            CURRENT_REF="${{ github.sha }}"
+            PREVIOUS_TAG_SOURCE="${{ github.sha }}"
           fi
 
           echo "build_type=${BUILD_TYPE}" >> "$GITHUB_OUTPUT"
+          echo "publish_release=${PUBLISH_RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "current_ref=${CURRENT_REF}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag_source=${PREVIOUS_TAG_SOURCE}" >> "$GITHUB_OUTPUT"
           echo "gradle_task=assemble${BUILD_TYPE^}" >> "$GITHUB_OUTPUT"
           echo "apk_dir=app/build/outputs/apk/${BUILD_TYPE}" >> "$GITHUB_OUTPUT"
-          echo "artifact_file=${{ github.run_number }}.apk" >> "$GITHUB_OUTPUT"
+          echo "artifact_file=${APP_NAME}-${{ github.run_number }}.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve version metadata
+        id: version
+        shell: bash
+        run: |
+          CURRENT_VERSION_CODE="$(sed -nE 's/.*defaultVersionCode = ([0-9]+).*/\1/p' app/build.gradle | head -n 1)"
+          TAG_COUNT="$(git tag --list | wc -l | tr -d ' ')"
+
+          if [[ -z "${CURRENT_VERSION_CODE}" ]]; then
+            echo "Failed to resolve current versionCode" >&2
+            exit 1
+          fi
+
+          LATEST_VERSION_CODE="$((CURRENT_VERSION_CODE + TAG_COUNT))"
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            CI_VERSION_NAME="${{ github.ref_name }}"
+            CI_VERSION_CODE="$((LATEST_VERSION_CODE + 1))"
+          else
+            CI_VERSION_NAME="actions-${{ github.run_number }}"
+            CI_VERSION_CODE="${LATEST_VERSION_CODE}"
+          fi
+
+          echo "version_code=${CI_VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "version_name=${CI_VERSION_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
       - name: Build APK
-        run: ./gradlew ${{ steps.config.outputs.gradle_task }}
+        run: ./gradlew ${{ steps.config.outputs.gradle_task }} -PciVersionCode=${{ steps.version.outputs.version_code }} -PciVersionName=${{ steps.version.outputs.version_name }}
 
       - name: Sign release APK
         id: sign_release
@@ -108,18 +162,127 @@ jobs:
           cp "${SOURCE_APK}" "${TARGET_APK}"
           echo "apk_path=${TARGET_APK}" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare release notes
+        id: release_notes
+        if: steps.config.outputs.publish_release == 'true'
+        shell: bash
+        run: |
+          NOTES_FILE="dist/release-notes.md"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          CURRENT_REF="${{ steps.config.outputs.current_ref }}"
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${{ steps.config.outputs.previous_tag_source }}" 2>/dev/null || true)"
+
+          sed \
+            -e "s/{{TAG}}/${{ steps.config.outputs.release_tag }}/g" \
+            -e "s/{{RUN_NUMBER}}/${{ github.run_number }}/g" \
+            -e "s/{{COMMIT_SHA}}/${SHORT_SHA}/g" \
+            -e "s/{{VERSION_NAME}}/${{ steps.version.outputs.version_name }}/g" \
+            -e "s/{{VERSION_CODE}}/${{ steps.version.outputs.version_code }}/g" \
+            -e "s/{{APK_NAME}}/${{ steps.config.outputs.artifact_file }}/g" \
+            .github/release-template.md > "${NOTES_FILE}"
+
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            CHANGELOG_RANGE="${PREVIOUS_TAG}..${CURRENT_REF}"
+          else
+            CHANGELOG_RANGE="${CURRENT_REF}"
+          fi
+
+          {
+            echo ""
+            echo "## Changelog"
+            if [[ -n "${PREVIOUS_TAG}" ]]; then
+              echo ""
+              echo "From \`${PREVIOUS_TAG}\` to \`${{ steps.config.outputs.release_tag }}\`"
+            fi
+            echo ""
+            git log "${CHANGELOG_RANGE}" --pretty=format:"- %s (%h)"
+          } >> "${NOTES_FILE}"
+
+          echo "notes_path=${NOTES_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Collect release contributors
+        id: contributors
+        if: steps.config.outputs.publish_release == 'true'
+        uses: actions/github-script@v7
+        env:
+          CURRENT_REF: ${{ steps.config.outputs.current_ref }}
+          PREVIOUS_TAG_SOURCE: ${{ steps.config.outputs.previous_tag_source }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            const currentRef = process.env.CURRENT_REF;
+            const previousTagSource = process.env.PREVIOUS_TAG_SOURCE;
+            let previousTag = '';
+
+            try {
+              previousTag = execSync(`git describe --tags --abbrev=0 ${previousTagSource}`, { encoding: 'utf8' }).trim();
+            } catch (error) {
+              previousTag = '';
+            }
+
+            const range = previousTag ? `${previousTag}..${currentRef}` : currentRef;
+            const shas = execSync(`git rev-list ${range}`, { encoding: 'utf8' })
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean);
+
+            const seen = new Map();
+            for (const sha of shas) {
+              const commit = (
+                await github.rest.repos.getCommit({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: sha,
+                })
+              ).data;
+
+              const author = commit.author;
+              if (!author || seen.has(author.login)) {
+                continue;
+              }
+
+              const avatarUrl = `${author.avatar_url}${author.avatar_url.includes('?') ? '&' : '?'}s=40`;
+              seen.set(
+                author.login,
+                `- <img src="${avatarUrl}" width="20" height="20" alt="@${author.login}" /> [@${author.login}](${author.html_url})`
+              );
+            }
+
+            const contributorFile = 'dist/contributors.md';
+            fs.mkdirSync('dist', { recursive: true });
+            fs.writeFileSync(
+              contributorFile,
+              seen.size > 0
+                ? Array.from(seen.values()).join('\n')
+                : '- No GitHub-linked contributors found for this release range.\n',
+              'utf8'
+            );
+            core.setOutput('contributors_path', contributorFile);
+
+      - name: Append contributors to release notes
+        if: steps.config.outputs.publish_release == 'true'
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Contributors"
+            cat "${{ steps.contributors.outputs.contributors_path }}"
+          } >> "${{ steps.release_notes.outputs.notes_path }}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.run_number }}
+          name: ${{ env.APP_NAME }}-${{ github.run_number }}
           path: ${{ steps.artifact.outputs.apk_path }}
           if-no-files-found: error
 
       - name: Publish GitHub Release
-        if: github.event_name == 'workflow_dispatch' && steps.config.outputs.build_type == 'release' && inputs.publish_release
+        if: steps.config.outputs.publish_release == 'true' && steps.config.outputs.build_type == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: release-${{ github.run_number }}
-          name: Release ${{ github.run_number }}
+          tag_name: ${{ steps.config.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.APP_NAME }} ${{ steps.config.outputs.release_tag }}
           files: ${{ steps.artifact.outputs.apk_path }}
-          generate_release_notes: true
+          body_path: ${{ steps.release_notes.outputs.notes_path }}
